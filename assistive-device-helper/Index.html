@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>身障輔具補助查詢系統</title>
+  
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="apple-touch-icon" href="./icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* 優化手機觸控體驗 */
+    * { -webkit-tap-highlight-color: transparent; }
+    body { touch-action: manipulation; }
+
+    /* 自定義捲軸樣式 */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    // --- 0. 圖示元件 (SVG) ---
+    const IconWrapper = ({ children, className }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+
+    const Search = ({ className }) => <IconWrapper className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></IconWrapper>;
+    const Menu = ({ className }) => <IconWrapper className={className}><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></IconWrapper>;
+    const X = ({ className }) => <IconWrapper className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>;
+    const FileText = ({ className }) => <IconWrapper className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></IconWrapper>;
+    const Tag = ({ className }) => <IconWrapper className={className}><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l5 5a2 2 0 0 0 2.828 0l7.172-7.172a2 2 0 0 0 0-2.828l-5-5z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></IconWrapper>;
+    const Clock = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>;
+    const UserCheck = ({ className }) => <IconWrapper className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></IconWrapper>;
+    const CheckSquare = ({ className }) => <IconWrapper className={className}><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></IconWrapper>;
+    const BookOpen = ({ className }) => <IconWrapper className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconWrapper>;
+    const Settings = ({ className }) => <IconWrapper className={className}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
+    const AlertTriangle = ({ className }) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconWrapper>;
+
+    // --- 1. 資料處理 (Data) ---
+    const COMMON = {
+        WARRANTY: "(一)應檢附輔具供應商出具保固書之影本(保固書正本由申請人留存)。保固書並應載明產品規格、型號、序號、保固年限及起迄日期、輔具供應商行號名稱、統一編號、負責人姓名、服務電話及其他必要資訊。",
+        WARRANTY_MED: "(一)應檢附輔具供應商出具保固書之影本(保固書正本由申請人留存)。保固書並應載明產品規格、型號、序號、保固年限及起迄日期、輔具供應商行號名稱、統一編號、負責人姓名、服務電話，並應提供有效日期內中央主管機關醫療器材許可證字號及其他必要資訊。",
+        TARGET_LIMB: "一、補助對象：\n應符合下列條件之一：\n(一)第七類：【b710a】、【b710b】、【b730a】、【b730b】、【b735】、【b765】、【s730】、【s750】、【s760】或【05】重度以上。(重度以上肢體障礙者)\n(二)12歲以下動作發展障礙兒童(如腦性麻痺患者)。",
+        TARGET_GEN: "一、補助對象：\n應符合下列條件之一：\n(一)第一類(植物人、失智症者)。\n(二)第二類(平衡機能障礙者)。\n(三)第七類(肢體障礙者)。\n(四)其他經評估確認有需求者。",
+        ASSESS_PT: "二、評估規定：\n應符合下列條件之一：\n(一)經復健科醫師開立診斷證明書及相關專業治療師出具輔具評估報告書(格式編號1)。\n(二)經政府設置或委託辦理之輔具服務單位輔具評估人員開立輔具評估報告書(格式編號1)。",
+        ASSESS_NONE: "二、評估規定：\n本項不需評估。"
+    };
+
+    const CSV_DATA = [
+      [1, "個人行動輔具", "推車-一般型", 6500, 6500, 6500, 3, "甲/丁", COMMON.TARGET_LIMB, COMMON.ASSESS_PT, "三、規格或功能規範：\n專為載送人員設計之推車，均應配備骨盆帶，且須具15公斤以上載重功能。", "四、其他規定：\n(一)推車各項次(項次1至3)於最低使用年限內僅能擇一申請。\n" + COMMON.WARRANTY_MED],
+      [2, "個人行動輔具", "推車-荷重型", 12000, 12000, 12000, 3, "甲/丁", COMMON.TARGET_LIMB, COMMON.ASSESS_PT, "三、規格或功能規範：\n專為載送人員設計之推車，均應配備骨盆帶，且須具35公斤以上載重功能。", "四、其他規定：\n(一)推車各項次(項次1至3)於最低使用年限內僅能擇一申請。\n" + COMMON.WARRANTY_MED],
+      [3, "個人行動輔具", "推車-擺位型", 28000, 28000, 28000, 3, "甲/丁", COMMON.TARGET_LIMB, COMMON.ASSESS_PT, "三、規格或功能規範：\n須具35公斤以上載重功能，且具空中傾倒功能、座深及踏板高度之機械結構調整功能，並提供頭靠墊、軀幹側支撐墊、臀部側支撐墊及身體固定帶。", "四、其他規定：\n(一)推車各項次(項次1至3)於最低使用年限內僅能擇一申請。\n" + COMMON.WARRANTY_MED],
+      [4, "個人行動輔具", "輪椅-非輕量化量產型", 1750, 2625, 3500, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：\n應配備骨盆帶。", "四、其他規定：\n(一)輪椅各項次(項次4至6)於最低使用年限內僅能擇一申請。\n" + COMMON.WARRANTY_MED],
+      [5, "個人行動輔具", "輪椅-輕量化量產型", 2000, 3000, 4000, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：\n應配備骨盆帶，且為輕量化材質骨架設計。", "四、其他規定：\n(一)輪椅各項次(項次4至6)於最低使用年限內僅能擇一申請。\n(二)18歲以下得2年申請1次。\n" + COMMON.WARRANTY_MED],
+      [6, "個人行動輔具", "輪椅-客製型", 9000, 9000, 9000, 3, "甲/丁", COMMON.TARGET_LIMB, COMMON.ASSESS_PT, "三、規格或功能規範：\n符合下列4種以上規格：1.座寬調整 2.座深調整 3.座背靠角度調整 4.座高調整 5.扶手高度調整 6.後輪軸心調整 7.特大或特小座寬 8.輕量化。", "四、其他規定：\n(一)需檢附原廠訂製單。\n(二)18歲以下得2年申請1次。\n" + COMMON.WARRANTY_MED],
+      [7, "個人行動輔具", "輪椅附加功能-具利於移位功能", 5000, 5000, 5000, 3, "甲/丁", "一、補助對象：\n(一)植物人、失智症、平衡機能障礙、肢體障礙重度以上。\n(二)無法以下肢承重轉位者。", COMMON.ASSESS_PT, "三、規格或功能規範：\n具可拆、掀或下沉式扶手，並具可拆卸式腳靠。", "四、其他規定：\n(一)須搭配輪椅同時申請。\n" + COMMON.WARRANTY_MED],
+      [8, "個人行動輔具", "輪椅附加功能-具仰躺功能", 2000, 2000, 2000, 3, "甲/丁", "一、補助對象：同項次7。", COMMON.ASSESS_PT, "三、規格或功能規範：\n具與座面連動之椅背仰躺功能，配備胸帶及防傾桿。", "四、其他規定：\n(一)須搭配輪椅同時申請。\n" + COMMON.WARRANTY_MED],
+      [9, "個人行動輔具", "輪椅附加功能-具空中傾倒功能", 4000, 4000, 4000, 3, "甲/丁", "一、補助對象：同項次7。", COMMON.ASSESS_PT, "三、規格或功能規範：\n具與椅背連動之空中傾倒功能(Tilt-in-Space)，配備胸帶及防傾桿。", "四、其他規定：\n(一)須搭配輪椅同時申請。\n" + COMMON.WARRANTY_MED],
+      [10, "個人行動輔具", "高活動型輪椅-基礎型", 15000, 22500, 30000, 4, "甲/丁", "一、補助對象：\n重度以上下肢肢體障礙者，且具自力推行能力。", COMMON.ASSESS_PT, "三、規格或功能規範：\n全車淨重12公斤以下，高壓胎，且具軸心位置調整功能。", "四、其他規定：\n(一)18歲以下得2年申請1次。\n(二)不得再申請一般輪椅。\n" + COMMON.WARRANTY_MED],
+      [11, "個人行動輔具", "高活動型輪椅-進階型", 30000, 45000, 60000, 5, "甲/丁", "一、補助對象：同項次10。", COMMON.ASSESS_PT, "三、規格或功能規範：\n符合基礎型規格，並具備所有調節功能。", "四、其他規定：同項次10。"],
+      [12, "個人行動輔具", "輪椅-單手驅動型", 2500, 3750, 5000, 4, "甲/丁", "一、補助對象：\n肢體障礙者，且非驅動側肢體功能正常者。", COMMON.ASSESS_PT, "三、規格或功能規範：\n具雙輪連動驅動結構。", "四、其他規定：\n" + COMMON.WARRANTY_MED],
+      [13, "個人行動輔具", "站立式輪椅", 15000, 22500, 30000, 5, "甲/丁", "一、補助對象：\n下肢重度以上肢體障礙者，且上肢功能正常。", COMMON.ASSESS_PT, "三、規格或功能規範：\n具下肢支撐及站立功能結構。", "四、其他規定：\n" + COMMON.WARRANTY_MED],
+      [14, "個人行動輔具", "電動輪椅-基礎型", 25000, 37500, 50000, 5, "甲/丁", "一、補助對象：\n重度以上肢體障礙者，且具自行駕駛電動輪椅能力。", "二、評估規定：\n經輔具評估人員開立報告書(格式編號2)。", "三、規格或功能規範：\n爬坡6度，行駛25公里，保固3年。", "四、其他規定：\n(一)限單人使用。\n(二)年限內不得再申請代步車。\n" + COMMON.WARRANTY_MED],
+      [15, "個人行動輔具", "電動輪椅-進階型", 30000, 45000, 60000, 5, "甲/丁", "一、補助對象：同項次14。", "二、評估規定：\n經輔具評估人員開立報告書(格式編號2)。", "三、規格或功能規範：\n具備優於基礎型之性能(如懸吊避震、升降等)或特殊操控介面。", "四、其他規定：\n(一)限單人使用。\n(二)年限內不得再申請代步車。\n" + COMMON.WARRANTY_MED],
+      [16, "個人行動輔具", "電動輪椅配件-沙發型座椅", 2500, 3750, 5000, 5, "甲/丁", "一、補助對象：同電動輪椅。", "二、評估規定：同電動輪椅。", "三、規格或功能規範：\n獨立舒適座背墊與頭枕。", "四、其他規定：需搭配電動輪椅申請。"],
+      [17, "個人行動輔具", "電動輪椅配件-擺位型椅架", 5000, 7500, 10000, 5, "甲/丁", "一、補助對象：同電動輪椅。", "二、評估規定：同電動輪椅。", "三、規格或功能規範：\n可安裝擺位系統之椅架。", "四、其他規定：需搭配電動輪椅申請。"],
+      [18, "個人行動輔具", "電動輪椅配件-電動變換姿勢功能", 5000, 7500, 10000, 5, "甲/丁", "一、補助對象：同電動輪椅。", "二、評估規定：同電動輪椅。", "三、規格或功能規範：\n具電動仰躺、傾倒、升降或站立功能。", "四、其他規定：最多補助2種功能(可視為2項)。"],
+      [19, "個人行動輔具", "電動輪椅配件-特殊控制介面", 5000, 7500, 10000, 5, "甲/丁", "一、補助對象：無法使用一般搖桿者。", "二、評估規定：同電動輪椅。", "三、規格或功能規範：\n下巴控、吸吹控、頭控等。", "四、其他規定：需搭配電動輪椅申請。"],
+      [20, "個人行動輔具", "電動輪椅配件-代步車T型把手", 1000, 1500, 2000, 5, "甲/丁", "一、補助對象：慣用T型把手操作者。", "二、評估規定：同電動輪椅。", "三、規格或功能規範：\n改裝為T型把手。", "四、其他規定：需搭配電動輪椅申請。"],
+      [21, "個人行動輔具", "電動輪椅配件-加裝照顧者操作", 1000, 1500, 2000, 5, "甲/丁", "一、補助對象：需照顧者協助操作者。", "二、評估規定：同電動輪椅。", "三、規格或功能規範：\n照顧者用副控制器。", "四、其他規定：需搭配電動輪椅申請。"],
+      [22, "個人行動輔具", "電動輪椅電池(非鋰系)-50Ah以上", 2500, 3750, 5000, 2, "不需", "一、補助對象：符合電動輪椅資格者。", COMMON.ASSESS_NONE, "三、規格或功能規範：\n符合CNS標準。", "四、其他規定：\n(一)單位為1部車所需電池量。\n(二)滿2年後始得申請。"],
+      [23, "個人行動輔具", "電動輪椅電池(鋰系)-10~20Ah", 4000, 6000, 8000, 4, "不需", "一、補助對象：符合電動輪椅資格者。", COMMON.ASSESS_NONE, "三、規格或功能規範：\n鋰系電池。", "四、其他規定：\n滿4年後始得申請。"],
+      [24, "個人行動輔具", "電動輪椅電池(鋰系)-20Ah以上", 6000, 9000, 12000, 4, "不需", "一、補助對象：符合電動輪椅資格者。", COMMON.ASSESS_NONE, "三、規格或功能規範：\n鋰系電池。", "四、其他規定：\n滿4年後始得申請。"],
+      [25, "個人行動輔具", "電動輪椅充電器", 1000, 1500, 2000, 2, "不需", "一、補助對象：符合電動輪椅資格者。", COMMON.ASSESS_NONE, "三、規格或功能規範：\n具過充保護。", "四、其他規定：\n需符合安全規範。"],
+      [26, "個人行動輔具", "擺位系統-平面型輪椅背靠", 1000, 1000, 1000, 3, "甲/丁", "一、補助對象：重度以上肢體障礙者。", COMMON.ASSESS_PT, "三、規格或功能規範：硬式底板+軟墊。", "四、其他規定：同擺位系統規定。"],
+      [27, "個人行動輔具", "擺位系統-曲面適形輪椅背靠", 13000, 13000, 13000, 3, "甲/丁", "一、補助對象：重度以上肢體障礙者。", COMMON.ASSESS_PT, "三、規格或功能規範：人體工學曲面。", "四、其他規定：同擺位系統規定。"],
+      [28, "個人行動輔具", "擺位系統-輪椅擺位架", 1500, 1500, 1500, 3, "甲/丁", "一、補助對象：重度以上肢體障礙者。", COMMON.ASSESS_PT, "三、規格或功能規範：側支撐、分腿器等。", "四、其他規定：依需求核定數量。"],
+      [29, "個人行動輔具", "擺位系統-模組化坐姿擺位系統", 25000, 25000, 25000, 3, "甲/丁", "一、補助對象：極重度肢體障礙者。", COMMON.ASSESS_PT, "三、規格或功能規範：完整模組化。", "四、其他規定：不可與其他座墊背靠重複。"],
+      [30, "個人行動輔具", "電動代步車", 12500, 18750, 25000, 5, "甲/丁", "一、補助對象：\n重度以上肢體或重要器官功能障礙者，具駕駛能力。", "二、評估規定：\n經輔具評估人員開立報告書(格式編號2)。", "三、規格或功能規範：\n四輪規格，前輪內距大於30公分。", "四、其他規定：\n(一)限單人使用。\n(二)年限內不得再申請電動輪椅。\n" + COMMON.WARRANTY_MED],
+      [31, "個人行動輔具", "助行器-一般型", 200, 300, 400, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：固定式/R型/折疊式。", "四、其他規定：無。"],
+      [32, "個人行動輔具", "助行器-帶輪型", 300, 450, 600, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：前二輪後二塞。", "四、其他規定：無。"],
+      [33, "個人行動輔具", "助行車", 750, 1125, 1500, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：四輪具煞車及座椅。", "四、其他規定：無。"],
+      [34, "個人行動輔具", "助行器-後拉型", 3000, 3000, 3000, 3, "甲/丁", COMMON.TARGET_GEN, COMMON.ASSESS_PT, "三、規格或功能規範：具防後退及方向控制。", "四、其他規定：無。"],
+      [35, "個人行動輔具", "助行器-前推型", 3000, 3000, 3000, 3, "甲/丁", COMMON.TARGET_GEN, COMMON.ASSESS_PT, "三、規格或功能規範：具骨盆或軀幹支撐。", "四、其他規定：無。"],
+      [36, "個人行動輔具", "移位腰帶", 400, 600, 800, 2, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：協助移位用。", "四、其他規定：無。"],
+      [37, "個人行動輔具", "移位轉盤", 500, 750, 1000, 2, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：協助旋轉移位。", "四、其他規定：無。"],
+      [38, "個人行動輔具", "移位板", 750, 1125, 1500, 2, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：搭橋式移位。", "四、其他規定：無。"],
+      [39, "個人行動輔具", "移位滑墊", 750, 1125, 1500, 2, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：低摩擦係數。", "四、其他規定：無。"],
+      [40, "個人行動輔具", "站立架-桌面型", 3000, 4500, 6000, 3, "甲/丁", COMMON.TARGET_GEN, COMMON.ASSESS_PT, "三、規格或功能規範：提供站立支撐。", "四、其他規定：無。"],
+      [41, "個人行動輔具", "站立架-懸吊型", 6000, 9000, 12000, 3, "甲/丁", COMMON.TARGET_GEN, COMMON.ASSESS_PT, "三、規格或功能規範：懸吊式。", "四、其他規定：無。"],
+      [42, "個人行動輔具", "單支拐杖-量產型", 250, 375, 500, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：\n單點手杖、前臂拐杖、腋下拐杖、四腳拐杖等。", "四、其他規定：\n雙側使用者按2倍計算。"],
+      [43, "個人行動輔具", "單支拐杖-特製型", 400, 600, 800, 3, "甲/丁", COMMON.TARGET_GEN, COMMON.ASSESS_PT, "三、規格或功能規範：特殊尺寸或材質。", "四、其他規定：雙側按2倍計算。"],
+      [44, "個人行動輔具", "有輪助步椅", 1000, 1500, 2000, 3, "不需", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：具座椅。", "四、其他規定：無。"],
+      [55, "個人行動輔具", "移位機-人力型", 15000, 22500, 30000, 10, "甲/丁", "一、補助對象：重度肢體障礙無法獨立移位者。", COMMON.ASSESS_PT, "三、規格或功能規範：油壓或機械式。", "四、其他規定：需居家使用。"],
+      [56, "個人行動輔具", "移位機-電動型", 30000, 45000, 60000, 10, "甲/丁", "一、補助對象：重度肢體障礙無法獨立移位者。", COMMON.ASSESS_PT, "三、規格或功能規範：電動升降。", "四、其他規定：需居家使用。"],
+      [57, "個人行動輔具", "移位機吊帶", 2000, 3000, 4000, 2, "甲/丁", "一、補助對象：重度肢體障礙無法獨立移位者。", COMMON.ASSESS_PT, "三、規格或功能規範：移位機專用。", "四、其他規定：滿2年申請。"],
+      [58, "個人行動輔具", "天花板式移位機", 40000, 60000, 80000, 10, "甲/丁", "一、補助對象：重度肢體障礙無法獨立移位者。", COMMON.ASSESS_PT, "三、規格或功能規範：軌道式。", "四、其他規定：需居家使用。"],
+      [59, "溝通及資訊輔具", "白手杖", 350, 525, 700, 2, "不需", "一、補助對象：視覺障礙者。", COMMON.ASSESS_NONE, "三、規格或功能規範：\n具反光貼紙。", "四、其他規定：\n年限內不得重複。"],
+      [60, "溝通及資訊輔具", "聽書機", 1750, 2625, 3500, 5, "不需", "一、補助對象：視覺障礙者。", COMMON.ASSESS_NONE, "三、規格或功能規範：可讀電子書。", "四、其他規定：無。"],
+      [71, "溝通及資訊輔具", "點字觸摸顯示器(20方以下)", 25000, 37500, 50000, 4, "戊", "一、補助對象：視覺障礙者，具點字辨識及電腦操作能力。", "二、評估規定：經視障評估人員評估(格式編號11)。", "三、規格或功能規範：\n20方以下。", "四、其他規定：\n" + COMMON.WARRANTY],
+      [72, "溝通及資訊輔具", "點字觸摸顯示器(20方以上)", 42500, 63750, 85000, 4, "戊", "一、補助對象：視覺障礙者。", "二、評估規定：經視障評估人員評估。", "三、規格或功能規範：20方以上。", "四、其他規定：無。"],
+      [73, "溝通及資訊輔具", "可攜式擴視機", 12500, 18750, 25000, 4, "戊", "一、補助對象：視覺障礙者。", "二、評估規定：經視障評估人員評估。", "三、規格或功能規範：3.5吋以上。", "四、其他規定：無。"],
+      [74, "溝通及資訊輔具", "桌上型擴視機", 20000, 30000, 40000, 5, "戊", "一、補助對象：視覺障礙者。", "二、評估規定：經視障評估人員評估。", "三、規格或功能規範：17吋以上。", "四、其他規定：無。"],
+      [82, "溝通及資訊輔具", "助聽器-簡易型", 1000, 1500, 2000, 4, "丙", "一、補助對象：聽覺機能障礙者。", "二、評估規定：經聽力師評估(格式編號9)。", "三、規格或功能規範：\n類比或數位式。", "四、其他規定：\n(一)雙耳得申請2只。\n(二)12歲以下2年申請1次。\n" + COMMON.WARRANTY_MED],
+      [83, "溝通及資訊輔具", "助聽器-中階型", 5000, 7500, 10000, 4, "丙", "一、補助對象：同項次82。", "二、評估規定：同項次82。", "三、規格或功能規範：\n6頻道以上，具噪音消除。", "四、其他規定：\n需檢附效益驗證報告。"],
+      [84, "溝通及資訊輔具", "助聽器-進階型", 10000, 15000, 20000, 4, "丙", "一、補助對象：同項次82。", "二、評估規定：同項次82。", "三、規格或功能規範：具方向性麥克風。", "四、其他規定：需檢附效益驗證報告。"],
+      [85, "溝通及資訊輔具", "助聽器-雙對側", 10000, 15000, 20000, 4, "丙", "一、補助對象：同項次82。", "二、評估規定：同項次82。", "三、規格或功能規範：CROS/BiCROS。", "四、其他規定：需檢附效益驗證報告。"],
+      [94, "溝通及資訊輔具", "溝通輔具-A款", 2500, 3750, 5000, 4, "乙/丁", "一、補助對象：溝通障礙者。", "二、評估規定：語言治療師評估。", "三、規格或功能規範：圖卡或溝通板。", "四、其他規定：無。"],
+      [95, "溝通及資訊輔具", "溝通輔具-B款", 3500, 5250, 7000, 4, "乙/丁", "一、補助對象：溝通障礙者。", "二、評估規定：語言治療師評估。", "三、規格或功能規範：低階語音溝通器。", "四、其他規定：無。"],
+      [96, "溝通及資訊輔具", "溝通輔具-C款", 9000, 13500, 18000, 4, "乙/丁", "一、補助對象：溝通障礙者。", "二、評估規定：語言治療師評估。", "三、規格或功能規範：高階語音溝通器。", "四、其他規定：無。"],
+      [97, "溝通及資訊輔具", "溝通輔具-D款", 5000, 7500, 10000, 4, "乙/丁", "一、補助對象：溝通障礙者。", "二、評估規定：語言治療師評估。", "三、規格或功能規範：溝通軟體。", "四、其他規定：無。"],
+      [114, "預防壓瘡輔具", "座墊-氣囊(基礎)", 5000, 5000, 5000, 2, "甲/丁", "一、補助對象：下半身癱瘓者。", COMMON.ASSESS_PT, "三、規格或功能規範：氣囊高5cm以上。", "四、其他規定：擇一申請。"],
+      [118, "預防壓瘡輔具", "座墊-固態凝膠", 8000, 8000, 8000, 5, "甲/丁", "一、補助對象：下半身癱瘓者。", COMMON.ASSESS_PT, "三、規格或功能規範：凝膠厚2.5cm以上。", "四、其他規定：擇一申請。"],
+      [121, "預防壓瘡輔具", "氣墊床-基礎型", 10000, 10000, 10000, 3, "甲/丁", "一、補助對象：\n癱瘓無法翻身或已發生壓傷者。", "二、評估規定：\n經輔具評估人員評估(格式編號17)。", "三、規格或功能規範：\n18管4吋以上，交替充氣。", "四、其他規定：\n(一)限居家使用。\n" + COMMON.WARRANTY_MED],
+      [122, "預防壓瘡輔具", "氣墊床-進階型", 14000, 14000, 14000, 3, "甲/丁", "一、補助對象：同項次121。", "二、評估規定：同項次121。", "三、規格或功能規範：具停電保留功能。", "四、其他規定：限居家使用。"],
+      [123, "住家家具及改裝", "居家用照顧床", 4500, 6750, 9000, 5, "甲/丁", "一、補助對象：肢體癱瘓無法自行翻身者。", COMMON.ASSESS_PT, "三、規格或功能規範：具升降及床板調整。", "四、其他規定：限居家使用。"],
+      [126, "住家家具及改裝", "照顧床-電動升降", 3000, 4500, 6000, 5, "甲/丁", "一、補助對象：同123。", COMMON.ASSESS_PT, "三、規格或功能規範：電動升降功能。", "四、其他規定：需搭配照顧床。"],
+      [132, "住家家具及改裝", "爬梯機", 40000, 60000, 80000, 10, "甲/丁", "一、補助對象：無法自行上下樓梯者。", COMMON.ASSESS_PT, "三、規格或功能規範：履帶或撐桿式。", "四、其他規定：每戶限1台。"],
+      [137, "住家家具及改裝", "固定式扶手", 80, 120, 160, 10, "甲/丁/戊", "一、補助對象：\n肢體障礙、平衡障礙、失智症等具行動困難者。", "二、評估規定：\n經評估人員到宅評估(格式編號19)。", "三、規格或功能規範：\n鎖固於牆面或地面。", "四、其他規定：\n每10公分計算。"],
+      [140, "住家家具及改裝", "改善衛浴-馬桶", 5000, 7500, 10000, 10, "甲/丁", "一、補助對象：\n同項次137。", "二、評估規定：\n同項次137。", "三、規格或功能規範：\n增高馬桶座或更換為身障專用馬桶。", "四、其他規定：\n" + COMMON.WARRANTY],
+      [141, "住家家具及改裝", "改善衛浴-浴缸", 2500, 3750, 5000, 10, "甲/丁", "一、補助對象：同137。", "二、評估規定：同137。", "三、規格或功能規範：拆除浴缸或改裝。", "四、其他規定：無。"],
+      [142, "住家家具及改裝", "改善衛浴-淋浴椅", 1500, 2250, 3000, 5, "甲/丁", "一、補助對象：同137。", "二、評估規定：同137。", "三、規格或功能規範：固定式淋浴椅。", "四、其他規定：無。"],
+      [155, "住家家具及改裝", "非固定式斜坡板A款", 1750, 2625, 3500, 5, "甲/丁", "一、補助對象：同項次137。", "二、評估規定：同項次137。", "三、規格或功能規範：\n可攜帶式，適用高度差30公分以下。", "四、其他規定：\n" + COMMON.WARRANTY],
+      [156, "住家家具及改裝", "非固定式斜坡板B款", 2500, 3750, 5000, 5, "甲/丁", "一、補助對象：同項次137。", "二、評估規定：同項次137。", "三、規格或功能規範：\n可攜帶式，適用高度差30公分以上。", "四、其他規定：\n" + COMMON.WARRANTY],
+      [157, "住家家具及改裝", "非固定式斜坡板C款", 5000, 7500, 10000, 5, "甲/丁", "一、補助對象：同項次137。", "二、評估規定：同項次137。", "三、規格或功能規範：\n平台式或模組式斜坡板。", "四、其他規定：\n" + COMMON.WARRANTY],
+      [158, "個人照顧及保護", "壓力衣-A款", 750, 1125, 1500, 1, "醫師", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：壓力頭套。", "四、其他規定：需經醫師診斷。"],
+      [159, "個人照顧及保護", "壓力衣-B款", 1500, 2250, 3000, 1, "醫師", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：壓力衣(上衣)。", "四、其他規定：需經醫師診斷。"],
+      [160, "個人照顧及保護", "壓力衣-C款", 1500, 2250, 3000, 1, "醫師", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：壓力衣(褲子)。", "四、其他規定：需經醫師診斷。"],
+      [161, "個人照顧及保護", "壓力衣-D款", 250, 375, 500, 1, "醫師", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：壓力手套/腳套。", "四、其他規定：需經醫師診斷。"],
+      [162, "個人照顧及保護", "壓力衣-E款", 250, 375, 500, 1, "醫師", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：壓力袖套。", "四、其他規定：需經醫師診斷。"],
+      [163, "個人照顧及保護", "壓力衣-F款", 500, 750, 1000, 1, "醫師", COMMON.TARGET_GEN, COMMON.ASSESS_NONE, "三、規格或功能規範：壓力面罩。", "四、其他規定：需經醫師診斷。"],
+      [164, "個人照顧及保護", "原床沐浴設備", 2500, 3750, 5000, 3, "甲/丁", "一、補助對象：長期臥床者。", COMMON.ASSESS_PT, "三、規格或功能規範：原床沐浴。", "四、其他規定：無。"],
+      [167, "個人照顧及保護", "沐浴椅", 450, 675, 900, 3, "不需", "一、補助對象：肢體障礙者。", "二、評估規定：不需。", "三、規格或功能規範：具背靠。", "四、其他規定：無。"],
+      [168, "個人照顧及保護", "沐浴椅-附輪", 1500, 2250, 3000, 3, "不需", "一、補助對象：肢體障礙者。", "二、評估規定：不需。", "三、規格或功能規範：附輪具煞車。", "四、其他規定：無。"],
+      [170, "個人照顧及保護", "便盆椅", 450, 675, 900, 3, "不需", "一、補助對象：肢體障礙者。", "二、評估規定：不需。", "三、規格或功能規範：具背靠。", "四、其他規定：無。"],
+      [181, "矯具及義具", "義肢-手指", 5000, 5000, 5000, 3, "醫師", "一、補助對象：手指缺損。", "二、評估規定：醫師診斷。", "三、規格或功能規範：美觀或功能。", "四、其他規定：無。"],
+      [190, "矯具及義具", "義肢-小腿", 30000, 30000, 30000, 3, "醫師", "一、補助對象：小腿缺損。", "二、評估規定：醫師診斷。", "三、規格或功能規範：傳統或模組。", "四、其他規定：無。"],
+      [210, "矯具及義具", "矯具-踝足", 6000, 6000, 6000, 2, "醫師", "一、補助對象：足部變形或無力。", "二、評估規定：醫師診斷。", "三、規格或功能規範：塑膠或金屬。", "四、其他規定：無。"],
+      [233, "矯具及義具", "義眼", 5000, 5000, 5000, 5, "醫師", "一、補助對象：眼球缺損。", "二、評估規定：醫師診斷。", "三、規格或功能規範：義眼片。", "四、其他規定：無。"],
+      [240, "溝通及資訊輔具", "人工電子耳", 300000, 450000, 600000, 10, "評估團隊", "一、補助對象：\n18歲以上未滿65歲，優耳聽力劣於90dB HL，且個人未曾接受健保人工電子耳給付者。", "二、評估規定：\n經醫院耳鼻喉科評估團隊確認。", "三、規格或功能規範：\n包含植入體及語言處理機。", "四、其他規定：\n終身補助一次。"],
+      [241, "溝通及資訊輔具", "人工電子耳語言處理設備更新", 100000, 100000, 150000, 5, "醫師", "一、補助對象：\n已裝置人工電子耳者，原機型停產無法使用。", "二、評估規定：\n診斷證明註明原廠停產。", "三、規格或功能規範：\n語言處理器更新。", "四、其他規定：\n" + COMMON.WARRANTY_MED],
+      [242, "溝通及資訊輔具", "人工電子耳配件", 1000, 2000, 3000, 1, "不需", "一、補助對象：\n已裝置人工電子耳者。", COMMON.ASSESS_NONE, "三、規格或功能規範：\n長線、線圈、磁鐵、電池等耗材。", "四、其他規定：\n無。"],
+    ];
+
+    const PROCESSED_DATA = CSV_DATA.map(item => {
+        const [id, category, name, gen, mid, low, min_years, personnel, target, assess, specs, other] = item;
+        let subcategory = "其他";
+        if (name.includes("推車")) subcategory = "推車";
+        else if (name.includes("輪椅") && name.includes("電動")) subcategory = "電動輪椅";
+        else if (name.includes("輪椅")) subcategory = "輪椅";
+        else if (name.includes("代步車")) subcategory = "電動代步車";
+        else if (name.includes("電池") || name.includes("充電")) subcategory = "電池/充電器";
+        else if (name.includes("拐杖") || name.includes("助行") || name.includes("站立架") || name.includes("移位")) subcategory = "步行/移位輔具";
+        else if (name.includes("氣墊") || name.includes("座墊")) subcategory = "預防壓瘡";
+        else if (name.includes("床")) subcategory = "照顧床";
+        else if (name.includes("助聽") || name.includes("電子耳")) subcategory = "聽覺輔具";
+        else if (category.includes("視障") || name.includes("點字") || name.includes("白手杖") || name.includes("聽書") || name.includes("擴視")) subcategory = "視覺輔具";
+        else if (name.includes("斜坡") || name.includes("扶手") || name.includes("修繕") || name.includes("爬梯")) subcategory = "居家無障礙";
+        else if (name.includes("壓力衣")) subcategory = "壓力衣";
+        else if (name.includes("溝通")) subcategory = "溝通輔具";
+        else if (name.includes("沐浴") || name.includes("便盆")) subcategory = "個人照顧";
+        else if (category.includes("矯具") || category.includes("義具") || name.includes("義肢")) subcategory = "矯具與義具";
+
+        return {
+            id, item_no: String(id), category, subcategory, name,
+            subsidy: { low, mid, general: gen },
+            min_years, assessment_personnel: personnel,
+            target, assessment_rule: assess, specs, other_rule: other
+        };
+    });
+
+    const categories = [...new Set(PROCESSED_DATA.map(item => item.category))];
+
+    // --- 2. 主程式 (Component) ---
+    const AssistiveDeviceSubsidy = () => {
+      const [selectedItem, setSelectedItem] = useState(PROCESSED_DATA[0]);
+      const [searchTerm, setSearchTerm] = useState("");
+      const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+      const [selectedCategory, setSelectedCategory] = useState("All");
+
+      const filteredData = useMemo(() => {
+        return PROCESSED_DATA.filter(item => {
+          const matchesSearch = item.name.includes(searchTerm) || item.item_no.includes(searchTerm) || item.subcategory.includes(searchTerm);
+          const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
+          return matchesSearch && matchesCategory;
+        });
+      }, [searchTerm, selectedCategory]);
+
+      return (
+        <div className="flex h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden">
+          {isSidebarOpen && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+
+          <div className={`
+            fixed lg:static inset-y-0 left-0 z-30 w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col
+            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          `}>
+            <div className="p-5 border-b bg-teal-700 text-white shadow-md z-10">
+              <h1 className="text-xl font-bold flex items-center gap-2">
+                <FileText className="w-6 h-6" />
+                身障輔具補助查詢
+              </h1>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-xs text-teal-100 bg-teal-800 px-2 py-0.5 rounded">依據112年基準表</p>
+                <button 
+                    onClick={() => setIsSidebarOpen(false)} 
+                    className="lg:hidden text-white hover:bg-teal-600 rounded p-1"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 border-b space-y-3 bg-gray-50">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="搜尋名稱、編號..."
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5 h-20 overflow-y-auto content-start custom-scrollbar">
+                <button
+                  onClick={() => setSelectedCategory("All")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    selectedCategory === "All" ? "bg-teal-600 text-white shadow-sm" : "bg-white border text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  全部
+                </button>
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      selectedCategory === cat ? "bg-teal-600 text-white shadow-sm" : "bg-white border text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-gray-50">
+              {filteredData.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">無符合項目</div>
+              ) : (
+                filteredData.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setIsSidebarOpen(false);
+                    }}
+                    className={`w-full text-left p-3 rounded-lg flex items-center justify-between group transition-all duration-200 border-l-4 
+                      ${selectedItem.id === item.id 
+                        ? 'bg-white border-teal-600 shadow-md ring-1 ring-black/5 z-10' 
+                        : 'hover:bg-white border-transparent hover:shadow-sm'
+                      }
+                    `}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded min-w-[24px] text-center">
+                          {item.item_no}
+                        </span>
+                        <span className={`text-xs font-medium truncate px-1.5 py-0.5 rounded ${selectedItem.id === item.id ? 'bg-teal-50 text-teal-700' : 'text-gray-500'}`}>
+                          {item.subcategory}
+                        </span>
+                      </div>
+                      <div className={`text-sm font-bold truncate ${selectedItem.id === item.id ? 'text-teal-900' : 'text-gray-700'}`}>
+                        {item.name}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative bg-gray-100">
+            <div className="lg:hidden bg-white border-b p-4 flex items-center justify-between shadow-sm z-10">
+              <h2 className="font-bold text-gray-800 truncate pr-4 text-sm">
+                {selectedItem.item_no}. {selectedItem.name}
+              </h2>
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -mr-2 text-gray-600">
+                <Menu className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+              <div className="max-w-5xl mx-auto space-y-6 pb-10">
+                
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-teal-50 to-teal-100 rounded-bl-full -mr-8 -mt-8 z-0 opacity-70"></div>
+                   <div className="relative z-10">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="bg-teal-600 text-white text-xs px-2.5 py-1 rounded-full font-bold">
+                        {selectedItem.category}
+                      </span>
+                      <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> {selectedItem.subcategory}
+                      </span>
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 leading-tight">
+                      {selectedItem.name}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                   <div className="bg-white p-5 rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-center text-center h-32">
+                      <div className="text-sm font-bold text-emerald-700 uppercase mb-2">一般戶 (50%)</div>
+                      <div className="text-2xl font-extrabold text-emerald-600 tracking-tight flex items-center justify-center gap-1">
+                        <span className="text-base font-normal text-emerald-500">$</span>
+                        {selectedItem.subsidy.general.toLocaleString()}
+                      </div>
+                   </div>
+
+                   <div className="bg-white p-5 rounded-xl border border-blue-200 shadow-sm flex flex-col justify-center text-center h-32">
+                      <div className="text-sm font-bold text-blue-700 uppercase mb-2">中低收入戶 (75%)</div>
+                      <div className="text-2xl font-extrabold text-blue-600 tracking-tight flex items-center justify-center gap-1">
+                        <span className="text-base font-normal text-blue-500">$</span>
+                        {selectedItem.subsidy.mid.toLocaleString()}
+                      </div>
+                   </div>
+
+                   <div className="bg-white p-5 rounded-xl border border-amber-200 shadow-sm flex flex-col justify-center text-center h-32">
+                      <div className="text-sm font-bold text-amber-700 uppercase mb-2">低收入戶 (全額)</div>
+                      <div className="text-2xl font-extrabold text-amber-600 tracking-tight flex items-center justify-center gap-1">
+                        <span className="text-base font-normal text-amber-500">$</span>
+                        {selectedItem.subsidy.low.toLocaleString()}
+                      </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                   <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                      <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                         <Clock className="w-5 h-5" />
+                      </div>
+                      <div>
+                         <span className="text-xs font-bold uppercase text-gray-500">最低使用年限</span>
+                         <div className="text-xl font-bold text-gray-900">{selectedItem.min_years} 年</div>
+                      </div>
+                   </div>
+
+                   <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                      <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
+                         <UserCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                         <span className="text-xs font-bold uppercase text-gray-500">評估人員</span>
+                         <div className="text-xl font-bold text-gray-900">
+                            {selectedItem.assessment_personnel}
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+                            <CheckSquare className="w-5 h-5 text-teal-600" />
+                            <h3 className="font-bold text-gray-800 text-lg">補助對象資格</h3>
+                        </div>
+                        <div className="p-6">
+                            <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 text-blue-900 text-base whitespace-pre-line leading-relaxed">
+                                {selectedItem.target}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+                            <BookOpen className="w-5 h-5 text-teal-600" />
+                            <h3 className="font-bold text-gray-800 text-lg">評估詳細規定</h3>
+                        </div>
+                        <div className="p-6 text-gray-700 text-base whitespace-pre-line leading-relaxed">
+                            {selectedItem.assessment_rule}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+                            <Settings className="w-5 h-5 text-teal-600" />
+                            <h3 className="font-bold text-gray-800 text-lg">規格或功能規範</h3>
+                        </div>
+                        <div className="p-6">
+                            <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 text-gray-700 text-base whitespace-pre-line leading-relaxed">
+                                {selectedItem.specs}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+                            <AlertTriangle className="w-5 h-5 text-teal-600" />
+                            <h3 className="font-bold text-gray-800 text-lg">其他注意事項</h3>
+                        </div>
+                        <div className="p-6 text-gray-700 text-base whitespace-pre-line leading-relaxed">
+                            {selectedItem.other_rule}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="text-center py-4">
+                   <p className="text-xs text-gray-400">
+                     註：本系統僅供參考，實際申請資格、金額與評估報告格式，請以各縣市社會局最新公告之核定公文為準。<br/>
+                     資料來源：112.1.1 施行之身心障礙者輔具費用補助基準表 (含線上補助基準表.csv)
+                   </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<AssistiveDeviceSubsidy />);
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('Service Worker 註冊成功', reg))
+          .catch(err => console.log('Service Worker 註冊失敗', err));
+      });
+    }
+  </script>
+</body>
+</html>

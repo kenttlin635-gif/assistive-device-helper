@@ -244,7 +244,6 @@
                 />
               </div>
               
-              {/* 分類選單修正：移除高度限制，改為自動換行 */}
               <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={() => setSelectedCategory("All")}
@@ -335,38 +334,38 @@
                   </div>
                 </div>
 
-                {/* 補助金額區修正：改為 3 欄並排，內距縮小，字體自適應 */}
+                {/* V23 修正：補助金額區 (完整標示 + 緊湊排版) */}
                 <div className="grid grid-cols-3 gap-2">
                    <div className="bg-white p-2 md:p-5 rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-center text-center">
-                      <div className="text-[10px] md:text-sm font-bold text-emerald-700 uppercase mb-1">一般戶</div>
+                      <div className="text-[10px] md:text-sm font-bold text-emerald-700 uppercase mb-1">一般戶 <span className="text-[9px] opacity-80">(50%)</span></div>
                       <div className="text-sm md:text-2xl font-extrabold text-emerald-600 tracking-tight flex flex-col md:flex-row items-center justify-center gap-0.5">
                         {selectedItem.subsidy.general.toLocaleString()}
                       </div>
                    </div>
 
                    <div className="bg-white p-2 md:p-5 rounded-xl border border-blue-200 shadow-sm flex flex-col justify-center text-center">
-                      <div className="text-[10px] md:text-sm font-bold text-blue-700 uppercase mb-1">中低收</div>
+                      <div className="text-[10px] md:text-sm font-bold text-blue-700 uppercase mb-1">中低收 <span className="text-[9px] opacity-80">(75%)</span></div>
                       <div className="text-sm md:text-2xl font-extrabold text-blue-600 tracking-tight flex flex-col md:flex-row items-center justify-center gap-0.5">
                         {selectedItem.subsidy.mid.toLocaleString()}
                       </div>
                    </div>
 
                    <div className="bg-white p-2 md:p-5 rounded-xl border border-amber-200 shadow-sm flex flex-col justify-center text-center">
-                      <div className="text-[10px] md:text-sm font-bold text-amber-700 uppercase mb-1">低收入</div>
+                      <div className="text-[10px] md:text-sm font-bold text-amber-700 uppercase mb-1">低收入 <span className="text-[9px] opacity-80">(全額)</span></div>
                       <div className="text-sm md:text-2xl font-extrabold text-amber-600 tracking-tight flex flex-col md:flex-row items-center justify-center gap-0.5">
                         {selectedItem.subsidy.low.toLocaleString()}
                       </div>
                    </div>
                 </div>
 
-                {/* 資訊卡片區修正：改為 2 欄並排 */}
+                {/* V23 修正：資訊卡片區 (完整標題 + 緊湊排版) */}
                 <div className="grid grid-cols-2 gap-2">
                    <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-center md:justify-start gap-2 md:gap-4">
                       <div className="hidden md:block p-2 bg-indigo-50 rounded-lg text-indigo-600">
                          <Clock className="w-5 h-5" />
                       </div>
                       <div className="text-center md:text-left">
-                         <span className="text-[10px] md:text-xs font-bold uppercase text-gray-500 block">年限</span>
+                         <span className="text-[10px] md:text-xs font-bold uppercase text-gray-500 block">最低使用年限</span>
                          <div className="text-sm md:text-xl font-bold text-gray-900">{selectedItem.min_years} 年</div>
                       </div>
                    </div>
@@ -376,7 +375,7 @@
                          <UserCheck className="w-5 h-5" />
                       </div>
                       <div className="text-center md:text-left">
-                         <span className="text-[10px] md:text-xs font-bold uppercase text-gray-500 block">評估</span>
+                         <span className="text-[10px] md:text-xs font-bold uppercase text-gray-500 block">評估人員</span>
                          <div className="text-sm md:text-xl font-bold text-gray-900">
                             {selectedItem.assessment_personnel}
                          </div>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'subsidy-search-v2';
+const CACHE_NAME = 'subsidy-search-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -41,3 +41,4 @@ self.addEventListener('activate', (event) => {
   );
 
 });
+
